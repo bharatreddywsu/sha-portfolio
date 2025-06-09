@@ -1,7 +1,9 @@
 import os
 import base64
-from dotenv import load_dotenv
 import streamlit as st
+
+# Pull your OpenAI key from Streamlit Cloud’s Secrets
+OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 
 from langchain_community.embeddings import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
@@ -9,11 +11,8 @@ from langchain.chat_models import ChatOpenAI
 from langchain.chains import RetrievalQA
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Load environment and set page
+# Page config
 # ─────────────────────────────────────────────────────────────────────────────
-load_dotenv()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
 st.set_page_config(
     page_title="SHA — Bharat’s AI Assistant",
     page_icon="👩‍🚀",
@@ -33,7 +32,7 @@ def show_sha_avatar():
             <div style='text-align:center; margin-bottom:15px;'>
                 <img src="data:image/png;base64,{encoded}" width="120"
                      style="border-radius:50%; box-shadow:0 0 15px #7F5AF0;">
-                <h2 style='color:#E0E0E0; margin-top:10px;'>SHA — Bharat's AI Companion</h2>
+                <h2 style='color:#E0E0E0; margin-top:10px;'>SHA — Your AI Companion</h2>
             </div>
             """,
             unsafe_allow_html=True
@@ -281,7 +280,7 @@ user_input = st.text_input("Your Question:")
 
 if user_input:
     q_lower = user_input.lower()
-    # Try each handler
+    # iterate handlers
     for handler in [
         handle_fun,
         handle_recruiter,
@@ -297,7 +296,7 @@ if user_input:
             st.markdown(f"**SHA:** {resp}")
             break
     else:
-        # Fallback to vector QA
+        # fallback to vector QA
         docs = store.as_retriever().get_relevant_documents(user_input)
         if not docs:
             st.session_state["miss_count"] += 1
