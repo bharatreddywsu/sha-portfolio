@@ -4,3 +4,4 @@ sha_vector_store/
 __pycache__/
 .streamlit/secrets.toml
 .streamlit/secrets.toml
+.streamlit/secrets.toml
