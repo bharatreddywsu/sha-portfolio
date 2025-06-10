@@ -34,7 +34,7 @@ def show_sha_avatar():
             <div style='text-align:center; margin-bottom:15px;'>
                 <img src="data:image/png;base64,{encoded}" width="120"
                      style="border-radius:50%; box-shadow:0 0 15px #7F5AF0;">
-                <h2 style='color:#E0E0E0; margin-top:10px;'>SHA — Your AI Companion</h2>
+                <h2 style='color:#E0E0E0; margin-top:10px;'>SHA — Bharat's Companion</h2>
             </div>
             """,
             unsafe_allow_html=True
