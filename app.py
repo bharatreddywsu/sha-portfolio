@@ -1,19 +1,19 @@
 import os
 import base64
 import streamlit as st
-from chat import qa_chain, store  # Import from updated chat.py
-
-# Pull your OpenAI key from Streamlit Cloud’s Secrets
-OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
+from chat import qa_chain, store  # Import retrieval logic
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Page config
+# Page config must be the first Streamlit command
 # ─────────────────────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="SHA — Bharat’s AI Assistant",
     page_icon="👩‍🚀",
     layout="centered",
 )
+
+# Pull your OpenAI key from Streamlit Cloud’s Secrets
+OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Avatar display
@@ -27,7 +27,7 @@ def show_sha_avatar():
             f"""
             <div style='text-align:center; margin-bottom:15px;'>
                 <img src="data:image/png;base64,{encoded}" width="120"
-                     style="border-radius:50%; box-shadow:0 0 15px #7F5AF0;'>
+                     style="border-radius:50%; box-shadow:0 0 15px #7F5AF0;">
                 <h2 style='color:#E0E0E0; margin-top:10px;'>SHA — Bharat's Companion</h2>
             </div>
             """,
@@ -88,7 +88,7 @@ if user_input:
             elif st.session_state["miss_count"] == 2:
                 msg = "Still not finding anything—maybe Bharat didn’t include it in his resume."
             else:
-                msg = "Okay, here’s my best guess… but you might want to ask Bharat directly to confirm 😁"
+                msg = "Okay, here’s my best guess… but you might want to ask Bharat directly to confirm 😄"
             st.markdown(f"**SHA:** {msg}")
         else:
             st.session_state["miss_count"] = 0
@@ -104,3 +104,12 @@ if user_input:
     if col2.button("👎"):
         with open("questions_log.txt", "a") as f:
             f.write(f"👎 {user_input}\n")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Footer
+# ─────────────────────────────────────────────────────────────────────────────
+st.markdown("<hr/>", unsafe_allow_html=True)
+st.markdown(
+    "<center><small>🤖 Powered by SHA — Bharat’s AI Assistant (v3.0)</small></center>",
+    unsafe_allow_html=True
+)
