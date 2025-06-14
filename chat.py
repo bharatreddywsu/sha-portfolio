@@ -1,15 +1,7 @@
 import os
 import base64
 import streamlit as st
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Path setup for knowledge base (relative to repo root)
-# ─────────────────────────────────────────────────────────────────────────────
-knowledge_path = "knowledge_base"
-
-# Pull your OpenAI key from Streamlit Cloud’s Secrets
-OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
-
+from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import OpenAIEmbeddings
@@ -18,27 +10,30 @@ from langchain_community.chat_models import ChatOpenAI
 from langchain.chains import RetrievalQA
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Load env + secrets
+# ─────────────────────────────────────────────────────────────────────────────
+load_dotenv()
+OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Build or load the FAISS vector store
 # ─────────────────────────────────────────────────────────────────────────────
-embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
-vector_dir = "sha_vector_store"
+BASE_DIR     = os.path.dirname(__file__)
+KNOWLEDGE    = os.path.join(BASE_DIR, "knowledge_base")
+VECTOR_STORE = os.path.join(BASE_DIR, "sha_vector_store")
 
-if not os.path.exists(vector_dir):
+emb = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
+if not os.path.exists(VECTOR_STORE):
     docs = []
-    for file in os.listdir(knowledge_path):
-        if file.endswith(".pdf"):
-            loader = PyPDFLoader(os.path.join(knowledge_path, file))
+    for f in os.listdir(KNOWLEDGE):
+        if f.lower().endswith(".pdf"):
+            loader = PyPDFLoader(os.path.join(KNOWLEDGE, f))
             docs.extend(loader.load())
     splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-    split_docs = splitter.split_documents(docs)
-    FAISS.from_documents(split_docs, embeddings).save_local(vector_dir)
+    chunks   = splitter.split_documents(docs)
+    FAISS.from_documents(chunks, emb).save_local(VECTOR_STORE)
 
-store = FAISS.load_local(
-    vector_dir,
-    embeddings,
-    allow_dangerous_deserialization=True
-)
-
+store    = FAISS.load_local(VECTOR_STORE, emb, allow_dangerous_deserialization=True)
 qa_chain = RetrievalQA.from_chain_type(
     llm=ChatOpenAI(openai_api_key=OPENAI_API_KEY, temperature=0.1),
     chain_type="stuff",
@@ -46,7 +41,7 @@ qa_chain = RetrievalQA.from_chain_type(
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Handlers for different question types
+# Handlers for recruiter, company, tech, etc.
 # ─────────────────────────────────────────────────────────────────────────────
 def handle_fun(q):
     if any(w in q for w in ["girlfriend", "relationship", "single", "wife", "crush"]):
@@ -57,9 +52,15 @@ def handle_fun(q):
         return "Age is just metadata—especially if there’s no timestamp 😉."
     if any(w in q for w in ["hobbies", "free time", "weekend"]):
         return "Debugging tricky pipelines, reading AI papers, and sharing memes with fellow engineers."
-    if any(w in q for w in ["calm", "composed", "personality"]):
-        return "Bharat is calm, composed, and tackles challenges one data row at a time."
-    return None
+    # extra funny toss-ups:
+    if "fruit" in q:
+        return "I’d be a pineapple—tough exterior, sweet insights inside."
+    if "island" in q:
+        return "I’d build a coconut-powered server farm and live off solar CPU cycles."
+    if "emoji" in q:
+        return "🤖—because I’m building AI side-kicks for people."
+    # catch-all fun fallback
+    return "Beep boop… I’m still learning how to crack that one! Ask me something else."
 
 def handle_recruiter(q):
     if any(w in q for w in ["sponsorship", "visa", "work authorization"]):
@@ -71,135 +72,93 @@ def handle_recruiter(q):
         return "He can join with about a 2-week notice—flexible for the right opportunity."
     if any(w in q for w in ["salary expectation", "current salary", "expected salary"]):
         return "Bharat is open and flexible—happy to discuss compensation based on role, location, and growth potential."
-    if any(w in q for w in ["open to relocation", "relocation"]):
+    if any(w in q for w in ["relocation", "open to relocation"]):
         return "He’s open to relocation, hybrid, or remote roles—whatever best serves the team."
-    if "remote" in q:
-        return "Absolutely—Bharat excels in both remote and in-office environments."
-    if "experience" in q and "data engineer" in q:
-        return "Bharat has 5+ years of data engineering experience across cloud, streaming, and analytics platforms."
     return None
 
 def handle_company(q):
-    if any(t in q for t in ["current company", "present company", "where are you working", "working now"]):
-        return "Bharat is currently working at **KLA** as a Data Engineer since May 2024."
+    if any(t in q for t in ["current company", "working now"]):
+        return "Bharat is currently at **KLA** as a Data Engineer since May 2024."
     if "dentsu" in q:
-        return (
-            "At Dentsu (May 2020–May 2022), Bharat built data pipelines using Azure Data Factory, Spark, Kafka, "
-            "and Power BI dashboards. RAG and LLM tech weren't used then."
-        )
-    if any(t in q for t in ["wichita state", "master", "mscs"]):
-        return (
-            "Bharat completed his Master’s in Computer Science at Wichita State University (Aug 2022–May 2024), "
-            "including BI Developer and Post-Production Lead internships."
-        )
+        return ("At Dentsu (May 2020–May 2022), he built pipelines using ADF, Spark, Kafka, "
+                "and Power BI. RAG/LLM tech wasn’t in scope then.")
+    if any(t in q for t in ["wichita state", "master’s", "mscs"]):
+        return "He completed his Master’s in CS at Wichita State (Aug 2022–May 2024)."
     if "fagron" in q:
-        return (
-            "At Fagron (Dec 2022–Apr 2024), he built ETL on AWS Glue, Redshift, and Snowflake, supported HIPAA/FDA compliance, "
-            "and introduced a light-based verification system in post-production."
-        )
-    if "kla" in q:
-        return (
-            "At KLA (May 2024–Present), Bharat builds RAG pipelines using OpenAI and Azure Cognitive Search, "
-            "implements LLM assistants in Databricks, and designs real-time analytics for wafer defect detection."
-        )
+        return ("At Fagron (Dec 2022–Apr 2024), he built HIPAA-compliant ETL on AWS Glue/Redshift, "
+                "and added a light-verification system post-prod.")
     return None
 
 def handle_tech(q):
     if "rag" in q or "retrieval augmented generation" in q:
-        return (
-            "Bharat has hands-on RAG experience at KLA, where he set up vector search with OpenAI embeddings "
-            "and Azure Cognitive Search for semiconductor defect Q&A."
-        )
+        return "He set up FAISS + OpenAI embeddings at KLA for wafer-defect Q&A."
     if "llm" in q or "large language model" in q:
-        return (
-            "He uses LLMs at KLA inside Databricks for code suggestions, pipeline debugging, "
-            "and contextual Q&A since late 2023."
-        )
-    if "optimize" in q and "databricks" in q:
-        return (
-            "He optimized Databricks pipelines by tuning Spark partition sizes, caching hot tables, "
-            "and refactoring PySpark jobs, reducing runtime by 40%."
-        )
+        return "He uses LLMs in Databricks for code suggestions, debugging, and context-aware Q&A."
+    if "airflow" in q:
+        return "Built DAGs with sensors, retries, SLA alerts, and email notifications."
     if "kafka" in q or "streaming" in q:
-        return (
-            "At Dentsu and KLA, he used Kafka for real-time data ingestion, wrote consumers in "
-            "PySpark Structured Streaming, and ensured exactly-once delivery semantics."
-        )
+        return "Wrote PySpark Structured Streaming consumers with exactly-once semantics."
     return None
 
 def handle_education(q):
     if any(w in q for w in ["master", "wichita state"]):
-        return "Bharat completed his Master’s in Computer Science at Wichita State University (Aug 2022–May 2024)."
+        return "Master’s in CS from Wichita State University (Aug 2022–May 2024)."
     if "bachelor" in q:
-        return "He earned his Bachelor’s in Engineering (Computer Science) in 2018 and built early projects like Raspberry Pi face recognition."
-    if any(w in q for w in ["certification", "certified"]):
-        return "He holds certifications: AWS Solutions Architect, Databricks Certified Data Engineer, Snowflake Data Engineer, and Python & SQL certifications."
+        return "Bachelor’s in Engineering (CS) in 2018 with early Python/OpenCV projects."
+    if "certification" in q:
+        return ("Certs: AWS Solutions Architect, Databricks Data Engineer, Snowflake Data Engineer, "
+                "and Python & SQL certifications.")
     return None
 
 def handle_projects(q):
-    if any(w in q for w in ["sawyer", "pybullet", "grasping"]):
-        return "He built a Sawyer Arm simulation in PyBullet (Jan 2023–Mar 2023), implementing inverse kinematics and reward-based grasp testing."
-    if any(w in q for w in ["face recognition", "raspberry pi"]):
-        return "He developed a Raspberry Pi face recognition system using Python and OpenCV for home security (2018)."
-    if "expense tracker" in q or "hackathon" in q:
-        return "He led a weekend hackathon building a Python expense tracker with Power BI visuals to alert on unusual spending (Mar 2023)."
+    if "sawyer" in q or "pybullet" in q:
+        return "Built a Sawyer Arm sim in PyBullet (Jan 2023–Mar 2023) with IK and reward-based grasp tests."
+    if "face recognition" in q:
+        return "Developed a Raspberry Pi face-recognition system using OpenCV (2018)."
     return None
 
 def handle_volunteer(q):
-    if any(w in q for w in ["guinness", "wheelchair", "coordinator"]):
-        return "As a coordinator at Vel Tech (May 2019), he helped plan a Guinness World Record wheelchair event raising disability awareness."
+    if "guinness" in q or "wheelchair" in q:
+        return "Coordinated a Guinness World Record wheelchair event at Vel Tech (May 2019)."
     return None
 
 def handle_behavioral(q):
     if any(w in q for w in ["tell me about a time", "example of", "how did you"]):
-        return "Sure—tell me which scenario you'd like, such as optimizing pipeline performance or leading a project, and I'll share the details."
+        return ("Sure—let me know whether you want a pipeline-optimization story, a leadership example, "
+                "or something else.")
     return None
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Main interaction
+# Main chat loop + UI
 # ─────────────────────────────────────────────────────────────────────────────
 st.markdown("#### Ask SHA anything about Bharat 👇")
 user_input = st.text_input("Your Question:")
 
 if user_input:
-    q_lower = user_input.lower()
-    for handler in [
-        handle_fun,
-        handle_recruiter,
-        handle_company,
-        handle_tech,
-        handle_education,
-        handle_projects,
-        handle_volunteer,
-        handle_behavioral,
-    ]:
-        resp = handler(q_lower)
+    q = user_input.lower()
+    # 1) Try all the handlers in order
+    for fn in [handle_fun, handle_recruiter, handle_company,
+               handle_tech, handle_education, handle_projects,
+               handle_volunteer, handle_behavioral]:
+        resp = fn(q)
         if resp:
             st.markdown(f"**SHA:** {resp}")
             break
     else:
+        # 2) Fall back to RAG
         docs = store.as_retriever().get_relevant_documents(user_input)
-        if not docs:
-            st.session_state["miss_count"] = st.session_state.get("miss_count", 0) + 1
-            if st.session_state["miss_count"] == 1:
-                msg = "Hmm, that’s not in my memory yet. Want to try asking something else?"
-            elif st.session_state["miss_count"] == 2:
-                msg = "Still not finding anything—maybe Bharat didn’t include it in his resume."
-            else:
-                msg = "Okay, here’s my best guess… but you might want to ask Bharat directly to confirm 😄"
-            st.markdown(f"**SHA:** {msg}")
+        if docs:
+            st.markdown("**SHA:** " + qa_chain.run(user_input))
         else:
-            st.session_state["miss_count"] = 0
-            with st.spinner("SHA is thinking..."):
-                answer = qa_chain.run(user_input)
-            st.markdown(f"**SHA:** {answer}")
+            # 3) Bonus funny default if truly nothing matches
+            st.markdown("**SHA:** My circuits are tickled—but I don’t have that one yet! Try another question 😊")
 
-    # Feedback buttons
+    # 4) Feedback logging
     st.markdown("#### Was this helpful?")
-    col1, col2 = st.columns(2)
-    if col1.button("👍"):
+    c1, c2 = st.columns(2)
+    if c1.button("👍"):
         with open("questions_log.txt", "a") as f:
             f.write(f"👍 {user_input}\n")
-    if col2.button("👎"):
+    if c2.button("👎"):
         with open("questions_log.txt", "a") as f:
             f.write(f"👎 {user_input}\n")
