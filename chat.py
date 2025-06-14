@@ -2,6 +2,11 @@ import os
 import base64
 import streamlit as st
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Path setup for knowledge base (relative to repo root)
+# ─────────────────────────────────────────────────────────────────────────────
+knowledge_path = "knowledge_base"
+
 # Pull your OpenAI key from Streamlit Cloud’s Secrets
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 
@@ -75,7 +80,6 @@ st.markdown("""
 # ─────────────────────────────────────────────────────────────────────────────
 # Load all PDFs from knowledge_base folder and build FAISS vector store
 # ─────────────────────────────────────────────────────────────────────────────
-knowledge_path = os.path.expanduser("~/Documents/sha/knowledge_base")
 embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
 vector_dir = "sha_vector_store"
 
@@ -101,4 +105,4 @@ qa_chain = RetrievalQA.from_chain_type(
     retriever=store.as_retriever()
 )
 
-# (The rest of your existing handler code remains unchanged, continuing after qa_chain definition)
+# (Any additional logic or UI input handling continues here)
