@@ -1,22 +1,21 @@
 import os
 from dotenv import load_dotenv
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI  # Updated imports from langchain-openai
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain_community.chat_models import ChatOpenAI
 from langchain.chains import RetrievalQA
 
 # Load environment variables
 load_dotenv()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or ""
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
 # Paths
 BASE_DIR = os.path.dirname(__file__)
 KNOWLEDGE_PATH = os.path.join(BASE_DIR, "knowledge_base")
 VECTOR_DIR = os.path.join(BASE_DIR, "sha_vector_store")
 
-# Initialize embeddings
+# Initialize embeddings using new langchain-openai package
 embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
 
 # Build or load FAISS vector store (no UI code here)
@@ -37,7 +36,7 @@ store = FAISS.load_local(
     allow_dangerous_deserialization=True
 )
 
-# Create the QA chain
+# Create the QA chain with updated ChatOpenAI
 qa_chain = RetrievalQA.from_chain_type(
     llm=ChatOpenAI(openai_api_key=OPENAI_API_KEY, temperature=0.1),
     chain_type="stuff",
@@ -54,7 +53,6 @@ def handle_fun(q: str) -> str:
         return "Age is just metadata—especially if there’s no timestamp 😉."
     if any(w in q for w in ["hobbies", "free time", "weekend"]):
         return "Debugging tricky pipelines, reading AI papers, and sharing memes with fellow engineers."
-    # extra fun
     if "fruit" in q:
         return "I’d be a pineapple—tough exterior, sweet insights inside."
     if "island" in q:
@@ -63,6 +61,7 @@ def handle_fun(q: str) -> str:
         return "🤖—because I’m building AI side-kicks for people."
     return None
 
+# Other handlers unchanged...
 def handle_recruiter(q: str) -> str:
     if any(w in q for w in ["sponsorship", "visa", "work authorization"]):
         return (
@@ -82,8 +81,8 @@ def handle_company(q: str) -> str:
         return "I’m currently at **KLA** as a Data Engineer since May 2024."
     if "dentsu" in q:
         return (
-            "At Dentsu (May 2020–May 2022), I built pipelines with ADF, Spark, Kafka, and Power BI"  
-            ". RAG/LLM tech wasn’t in scope then."
+            "At Dentsu (May 2020–May 2022), I built pipelines with ADF, Spark, Kafka, and Power BI."  
+            " RAG/LLM tech wasn’t in scope then."
         )
     if any(t in q for t in ["wichita state", "master’s", "mscs"]):
         return "Completed my Master’s in CS at Wichita State University (Aug 2022–May 2024)."
@@ -141,9 +140,10 @@ def get_response(user_input: str) -> str:
         resp = fn(q)
         if resp:
             return resp
-    # Fallback to RAG
-    docs = store.as_retriever().get_relevant_documents(user_input)
+    # Fallback to RAG using invoke()
+    retriever = store.as_retriever()
+    docs = retriever.invoke(user_input)
     if docs:
-        return qa_chain.run(user_input)
+        return qa_chain.invoke(user_input)
     # Final funny fallback
     return "My circuits are tickled—but I don’t have that one yet! Try another question 😊"
