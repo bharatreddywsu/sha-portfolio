@@ -1,6 +1,7 @@
 import os
 import base64
 import streamlit as st
+from dotenv import load_dotenv
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Page config must be the first Streamlit command
@@ -11,13 +12,14 @@ st.set_page_config(
     layout="centered",
 )
 
-# Pull your OpenAI key from Streamlit Cloud’s Secrets
-OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
+# Load environment variables
+load_dotenv()
+OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Now import your retrieval logic (chat.py) after config to avoid early st.* calls
+# Import your response logic
 # ─────────────────────────────────────────────────────────────────────────────
-from chat import qa_chain, store  # Import RetrievalQA chain and FAISS store
+from chat import get_response
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Avatar display
@@ -43,7 +45,8 @@ show_sha_avatar()
 # ─────────────────────────────────────────────────────────────────────────────
 # Custom CSS for cosmic theme
 # ─────────────────────────────────────────────────────────────────────────────
-st.markdown("""
+st.markdown(
+    """
     <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
     <style>
         html, body, [class*="css"] {
@@ -68,7 +71,7 @@ st.markdown("""
             line-height: 1.6;
         }
     </style>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Initialize miss_count for fallback logic
@@ -80,32 +83,20 @@ if "miss_count" not in st.session_state:
 # Main Chat UI
 # ─────────────────────────────────────────────────────────────────────────────
 st.markdown("#### Ask SHA anything about Bharat 👇")
-user_input = st.text_input("Your Question:")
+user_input = st.text_input("Your Question:", key="main_input")
 
 if user_input:
     with st.spinner("SHA is thinking..."):
-        relevant_docs = store.as_retriever().get_relevant_documents(user_input)
-        if not relevant_docs:
-            st.session_state["miss_count"] += 1
-            if st.session_state["miss_count"] == 1:
-                msg = "Hmm, that’s not in my memory yet. Want to try asking something else?"
-            elif st.session_state["miss_count"] == 2:
-                msg = "Still not finding anything—maybe Bharat didn’t include it in his resume."
-            else:
-                msg = "Okay, here’s my best guess… but you might want to ask Bharat directly to confirm 😄"
-            st.markdown(f"**SHA:** {msg}")
-        else:
-            st.session_state["miss_count"] = 0
-            answer = qa_chain.run(user_input)
-            st.markdown(f"**SHA:** {answer}")
+        response = get_response(user_input)
+        st.markdown(f"**SHA:** {response}")
 
     # Feedback buttons
     st.markdown("#### Was this helpful?")
     col1, col2 = st.columns(2)
-    if col1.button("👍"):
+    if col1.button("👍", key="like_button"):
         with open("questions_log.txt", "a") as f:
             f.write(f"👍 {user_input}\n")
-    if col2.button("👎"):
+    if col2.button("👎", key="dislike_button"):
         with open("questions_log.txt", "a") as f:
             f.write(f"👎 {user_input}\n")
 
